@@ -2,6 +2,7 @@ const COLUMNS = 7;
 const ROWS = 6;
 const SPACE = 100;
 let grid = [];
+let line = [];
 let playerNr;
 let gameFinished;
 
@@ -20,25 +21,30 @@ function setup() {
         }
     }
 
+    line = [];
     gameFinished = false;
 }
 
 function draw() {
     background(0);
-    noStroke();
 
     // draw coins + empty spaces:
     for (let i = 0; i < COLUMNS; i++) {
         for (let j = 0; j < ROWS; j++) {
-            drawCoin(i, j, grid[i][j], 255);
+            drawCoin(i, j, grid[i][j], 255, false);
         }
+    }
+
+    // draw winning coins:
+    for (let coin of line) {
+        drawCoin(coin.column, coin.row, grid[coin.column][coin.row], 255, true);
     }
 
     // hover effect for coins placement:
     let row = getCoinPostion().row;
     let column = getCoinPostion().column;
     if (row >= 0 && !gameFinished) {
-        drawCoin(column, row, playerNr, 100);
+        drawCoin(column, row, playerNr, 100, false);
     }
 }
 
@@ -94,13 +100,19 @@ function getCoinPostion() {
     }
 }
 
-function drawCoin(column, row, val, alpha) {
+function drawCoin(column, row, val, alpha, isStroke) {
     if (val == 0) {
         fill(200);
     } else if (val == 1) {
         fill(255, 0, 0, alpha);
     } else {
         fill(255, 255, 0, alpha);
+    }
+    if (isStroke) {
+        strokeWeight(floor(SPACE * 0.05));
+        stroke(0, 0, 255, alpha);
+    } else {
+        noStroke();
     }
     let cx = SPACE * column + SPACE * 0.5;
     let cy = height - SPACE * row - SPACE * 0.5;
@@ -120,80 +132,57 @@ function isDraw() {
 
 function isWinner(column, row) {
     let gameOver = false;
-    let val = grid[column][row];
-    let sum;
 
     // check vertically
-    sum = 1;
-    for (let i = 1; i < 4; i++) {
-        if ((column + i) >= COLUMNS || grid[column + i][row] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    for (let i = 1; i < 4 && i >= 0; i++) {
-        if ((column - i) < 0 || grid[column - i][row] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    gameOver = gameOver || sum >= 4;
+    gameOver = checkLine(column, row, 0, 1);
 
     // check horizontally
-    sum = 1;
-    for (let i = 1; i < 4; i++) {
-        if ((row + i) >= ROWS || grid[column][row + i] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    for (let i = 1; i < 4; i++) {
-        if ((row - i) < 0 || grid[column][row - i] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    gameOver = gameOver || sum >= 4;
+    gameOver = gameOver || checkLine(column, row, 1, 0);
 
-    // check diagonally (upwards)
-    sum = 1;
-    for (let i = 1; i < 4; i++) {
-        if ((column + i) >= COLUMNS || (row + i) >= ROWS || grid[column + i][row + i] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    for (let i = 1; i < 4; i++) {
-        if ((column - i) < 0 || (row - i) < 0 || grid[column - i][row - i] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    gameOver = gameOver || sum >= 4;
-
-    // check diagonally (downwards)
-    sum = 1;
-    for (let i = 1; i < 4; i++) {
-        if ((column + i) >= COLUMNS || (row - i) < 0 || grid[column + i][row - i] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    for (let i = 1; i < 4; i++) {
-        if ((column - i) < 0 || (row + i) >= ROWS || grid[column - i][row + i] != val) {
-            break;
-        } else {
-            sum++;
-        }
-    }
-    gameOver = gameOver || sum >= 4;
+    // check diagonally (upwards + downwards)
+    gameOver = gameOver || checkLine(column, row, 1, 1) || checkLine(column, row, 1, -1);
 
     return gameOver;
+}
+
+function checkLine(column, row, dc, dr) {
+    let val = grid[column][row];
+    let sum = 1;
+    line.push({
+        column: column,
+        row: row
+    });
+
+    // move "right"
+    for (let i = 1; i < 4; i++) {
+        if (column + dc * i >= COLUMNS || row + dr * i >= ROWS || grid[column + dc * i][row + dr * i] != val || sum >= 4) {
+            break;
+        } else {
+            sum++;
+            line.push({
+                column: column + dc * i,
+                row: row + dr * i
+            });
+        }
+    }
+
+    // move "left"
+    for (let i = 1; i < 4; i++) {
+        if (column - dc * i < 0 || row - dr * i < 0 || grid[column - dc * i][row - dr * i] != val || sum >= 4) {
+            break;
+        } else {
+            sum++;
+            line.push({
+                column: column - dc * i,
+                row: row - dr * i
+            });
+        }
+    }
+
+    if (sum < 4) {
+        line = [];
+        return false;
+    }
+
+    return true;
 }
